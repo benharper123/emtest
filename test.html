@@ -1,0 +1,98 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+	<script src='hello.js'></script>
+	<script>
+		
+		var square = Module.cwrap('square', 'number', ['number']);
+
+		var c_lch2rgb = Module.cwrap('lch2rgb', null, ['number', 'number']);
+		var p_lch = Module._malloc(3*8);
+		var p_rgb = Module._malloc(3);
+		var a_lch = Module.HEAPF64.subarray(p_lch/8, p_lch/8 + 3);
+		var a_rgb = Module.HEAPU8.subarray(p_rgb, p_rgb + 3);
+
+		var img = null;
+		var lum = 0;
+
+		function lch2rgb(l, c, h) {
+			a_lch[0] = l;
+			a_lch[1] = c;
+			a_lch[2] = h;
+			c_lch2rgb(p_lch, p_rgb);
+		}
+
+		function dosquare() {
+			console.log("square of 3 is " + square(3));
+		}
+
+		function dorgb() {
+			var can = document.getElementById('can');
+			can.width = 512;
+			can.height = 512;
+			var context = can.getContext('2d');
+			if (!img)
+				img = context.createImageData(512, 512);
+			var px = img.data;
+			var cx = 256;
+			var cy = 256;
+			var radius = 256;
+			for (var y = 0; y < 512; y++) {
+				var line = y * 512 * 4;
+				var ry = y - cy;
+				for (var x = 0; x < 512; x++, line += 4) {
+					var rx = x - cx;
+					var d = Math.sqrt(rx * rx + ry * ry);
+					var h = Math.atan2(ry, rx);
+					var c = 100 * d / radius;
+
+					lch2rgb(lum, c, h);
+					px[line] = a_rgb[0];
+					px[line + 1] = a_rgb[1];
+					px[line + 2] = a_rgb[2];
+					px[line + 3] = 255;
+				}
+			}
+			context.putImageData(img, 0, 0);
+
+			//var p_lch = Module._malloc(3);
+			//var p_rgb = Module._malloc(3);
+			//var lch = Module.HEAPU8.subarray(p_lch, p_lch + 3);
+			//var rgb = Module.HEAPU8.subarray(p_rgb, p_rgb + 3);
+			//lch[0] = 1;
+			//lch[1] = 2;
+			//lch[2] = 3;
+			//lch2rgb(p_lch, p_rgb);
+			//console.log("rgb = " + rgb[0] + ", " + rgb[1] + ", " + rgb[2]);
+			//Module._free(p_lch);
+			//Module._free(p_rgb);
+		}
+
+		function mousemove(ev) {
+			lum = 100 * ev.clientX / 512;
+			dorgb();
+		}
+
+		function load() {
+			document.onmousemove = mousemove;
+		}
+
+	</script>
+	<style>
+		.btn {
+			width: 50px;
+			height: 50px;
+			background-color: #888;
+		}
+		.can {
+			width: 512px;
+			height: 512px;
+		}
+	</style>
+</head>
+<body onload='load()'>
+	<div class='btn' onclick="dosquare()"></div>
+	<div class='btn' onclick="dorgb()"></div>
+	<canvas id='can' class='can'></canvas>
+</body>
+</html>
