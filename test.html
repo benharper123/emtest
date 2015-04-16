@@ -5,14 +5,17 @@
 	<script>
 		
 		var square = Module.cwrap('square', 'number', ['number']);
-
 		var c_lch2rgb = Module.cwrap('lch2rgb', null, ['number', 'number']);
+		var lch_colorwheel = Module.cwrap('lch_colorwheel', null, ['number', 'number', 'number', 'number']);
+
 		var p_lch = Module._malloc(3*8);
 		var p_rgb = Module._malloc(3);
 		var a_lch = Module.HEAPF64.subarray(p_lch/8, p_lch/8 + 3);
 		var a_rgb = Module.HEAPU8.subarray(p_rgb, p_rgb + 3);
 
 		var img = null;
+		var img_buf = null;
+		var img_ptr = null;
 		var lum = 0;
 
 		function lch2rgb(l, c, h) {
@@ -28,31 +31,49 @@
 
 		function dorgb() {
 			var can = document.getElementById('can');
-			can.width = 512;
-			can.height = 512;
+			var width = 512;
+			var height = 512;
+			can.width = width;
+			can.height = height;
 			var context = can.getContext('2d');
 			if (!img)
-				img = context.createImageData(512, 512);
+				img = context.createImageData(width, height);
+			if (!img_buf) {
+				img_buf = Module._malloc(width * height * 4);
+				img_ptr = Module.HEAPU8.subarray(img_buf, img_buf + width * height * 4);
+			}
 			var px = img.data;
-			var cx = 256;
-			var cy = 256;
-			var radius = 256;
-			for (var y = 0; y < 512; y++) {
-				var line = y * 512 * 4;
-				var ry = y - cy;
-				for (var x = 0; x < 512; x++, line += 4) {
-					var rx = x - cx;
-					var d = Math.sqrt(rx * rx + ry * ry);
-					var h = Math.atan2(ry, rx);
-					var c = 100 * d / radius;
+			var all_cpp = true;
 
-					lch2rgb(lum, c, h);
-					px[line] = a_rgb[0];
-					px[line + 1] = a_rgb[1];
-					px[line + 2] = a_rgb[2];
-					px[line + 3] = 255;
+			if (all_cpp) {
+				lch_colorwheel(lum, width, height, img_buf);
+				//var img_ptr = Module.HEAPU8.subarray(img_buf, img_buf + width * height * 4);
+				px.set(img_ptr);
+				//for (var i = 0; i < width * height * 4; i++)
+				//	px[i] = img_ptr[i];
+			}
+			else {
+				var cx = width / 2;
+				var cy = height / 2;
+				var radius = width / 2;
+				for (var y = 0; y < height; y++) {
+					var line = y * width * 4;
+					var ry = y - cy;
+					for (var x = 0; x < width; x++, line += 4) {
+						var rx = x - cx;
+						var d = Math.sqrt(rx * rx + ry * ry);
+						var h = Math.atan2(ry, rx);
+						var c = 100 * d / radius;
+
+						lch2rgb(lum, c, h);
+						px[line] = a_rgb[0];
+						px[line + 1] = a_rgb[1];
+						px[line + 2] = a_rgb[2];
+						px[line + 3] = 255;
+					}
 				}
 			}
+
 			context.putImageData(img, 0, 0);
 
 			//var p_lch = Module._malloc(3);

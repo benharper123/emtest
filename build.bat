@@ -1,1 +1,1 @@
-emcc -O2 --pre-js pre.js --closure 1 --memory-init-file 0 -s EXPORTED_FUNCTIONS="['_square', '_lch2rgb']" hello.cpp -o hello.js
+emcc -O2 --pre-js pre.js --closure 1 --memory-init-file 0 -s EXPORTED_FUNCTIONS="['_square', '_lch2rgb', 'lch_colorwheel']" hello.cpp -o hello.js
